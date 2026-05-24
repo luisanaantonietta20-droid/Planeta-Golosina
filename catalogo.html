@@ -174,6 +174,30 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .loading-spinner{width:40px;height:40px;border:4px solid #f0f0f0;border-top-color:#6c47ff;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-size:14px;color:#888;font-weight:600}
+
+/* ── HAMBURGUESA ── */
+.ham-btn{width:44px;height:44px;border-radius:12px;border:2px solid #e8e8e8;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;flex-shrink:0;transition:border-color .15s}
+.ham-btn:hover{border-color:#111}
+.ham-btn span{display:block;width:18px;height:2px;background:#111;border-radius:2px;transition:all .2s}
+.ham-overlay{position:fixed;inset:0;z-index:200;display:flex}
+.ham-overlay.hidden{display:none}
+.ham-overlay-bg{flex:1;background:rgba(0,0,0,.4)}
+.ham-drawer{width:340px;max-width:90vw;background:#fff;display:flex;flex-direction:column;height:100%;overflow-y:auto;box-shadow:4px 0 32px rgba(0,0,0,.15)}
+.ham-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px;border-bottom:1px solid #f0f0f0;flex-shrink:0}
+.ham-section-label{font-size:11px;font-weight:700;color:#bbb;letter-spacing:.1em;padding:16px 20px 8px}
+.ham-list{display:flex;flex-direction:column;gap:6px;padding:0 12px;max-height:340px;overflow-y:auto}
+.ham-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;border:2px solid #e8e8e8;background:#fff;cursor:pointer;transition:all .15s;text-align:left;width:100%}
+.ham-item:hover{border-color:#111;background:#fafafa}
+.ham-item.selected{border-color:#6c47ff;background:#f5f0ff}
+.ham-avatar{width:38px;height:38px;border-radius:50%;background:#e8e8e8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#555;flex-shrink:0}
+.ham-item.selected .ham-avatar{background:#6c47ff;color:#fff}
+.ham-item-info{flex:1;min-width:0}
+.ham-item-name{font-size:14px;font-weight:700;color:#111}
+.ham-item-sub{font-size:11px;color:#aaa;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* topbar con hamburguesa */
+.topbar-left{display:flex;align-items:center;gap:10px}
+.vendedor-badge{font-size:12px;font-weight:700;background:#111;color:#fff;padding:5px 12px;border-radius:99px;white-space:nowrap}
+.cliente-badge{font-size:12px;font-weight:700;background:#f5f0ff;color:#6c47ff;padding:5px 12px;border-radius:99px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -184,30 +208,52 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
   <div class="loading-text">Cargando catálogo...</div>
 </div>
 
-<!-- PANTALLA 1: SELECTOR VENDEDOR -->
-<div id="screen-selector">
-  <div class="sel-logo">🍬</div>
-  <div class="sel-title">Distribuidora</div>
-  <div class="sel-sub">¿Quién sos?</div>
-  <div class="sel-section" style="max-width:440px;width:100%">
-    <h3>VENDEDOR</h3>
-    <div class="sel-list" id="lista-vendedores"></div>
+<!-- MENÚ HAMBURGUESA -->
+<div id="hamburger-menu" class="ham-overlay hidden">
+  <div class="ham-drawer">
+    <div class="ham-hdr">
+      <div id="ham-title" style="font-size:17px;font-weight:800">Menú</div>
+      <button class="btn-cart-close" onclick="cerrarMenu()">✕</button>
+    </div>
+    <!-- PASO 1: Elegir vendedor -->
+    <div id="ham-step-vendedor">
+      <div class="ham-section-label">VENDEDOR</div>
+      <div class="ham-list" id="ham-lista-vendedores"></div>
+      <div style="padding:16px 20px;border-top:1px solid #f0f0f0;margin-top:8px">
+        <button class="btn-finalizar" style="background:#111" onclick="confirmarVendedor()">Confirmar vendedor →</button>
+      </div>
+    </div>
+    <!-- PASO 2: Elegir cliente -->
+    <div id="ham-step-cliente" style="display:none">
+      <div class="ham-section-label">CLIENTE</div>
+      <div style="padding:0 16px 10px">
+        <input class="sel-input" type="text" placeholder="Buscar cliente..." oninput="filtrarClientes(this.value)" id="buscador-clientes">
+      </div>
+      <div class="ham-list" id="ham-lista-clientes"></div>
+      <div style="padding:16px 20px;border-top:1px solid #f0f0f0;margin-top:8px;display:flex;gap:8px">
+        <button class="btn-cancel" style="flex:1" onclick="volverAVendedor()">← Volver</button>
+        <button class="btn-finalizar" style="flex:2" onclick="confirmarCliente()">Confirmar cliente →</button>
+      </div>
+    </div>
+    <!-- Sesión activa -->
+    <div id="ham-sesion" style="display:none">
+      <div style="padding:20px">
+        <div class="ham-section-label">SESIÓN ACTIVA</div>
+        <div style="background:#f5f5f5;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+          <div style="font-size:12px;color:#aaa;font-weight:600;margin-bottom:4px">VENDEDOR</div>
+          <div id="sesion-vendedor-nombre" style="font-size:16px;font-weight:800"></div>
+        </div>
+        <div style="background:#f5f0ff;border-radius:12px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-size:12px;color:#6c47ff;font-weight:600;margin-bottom:4px">CLIENTE ACTUAL</div>
+          <div id="sesion-cliente-nombre" style="font-size:16px;font-weight:800;color:#111"></div>
+          <div id="sesion-cliente-negocio" style="font-size:12px;color:#aaa;margin-top:2px"></div>
+        </div>
+        <button onclick="cambiarCliente()" style="width:100%;padding:12px;border-radius:10px;border:2px solid #e8e8e8;background:#fff;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">Cambiar cliente</button>
+        <button onclick="cerrarSesion()" style="width:100%;padding:12px;border-radius:10px;border:none;background:#fff0f0;color:#ff3b3b;font-size:14px;font-weight:700;cursor:pointer">Cerrar sesión (cambiar vendedor)</button>
+      </div>
+    </div>
   </div>
-  <button class="btn-continuar" id="btn-continuar-vendedor" disabled onclick="irACliente()">Continuar →</button>
-</div>
-
-<!-- PANTALLA 2: SELECTOR CLIENTE -->
-<div id="screen-cliente" class="hidden">
-  <div class="sel-logo">👥</div>
-  <div class="sel-title" id="titulo-cliente">Hola, <span id="nombre-vendedor-titulo"></span></div>
-  <div class="sel-sub">¿A qué cliente le vas a tomar el pedido?</div>
-  <div class="sel-section" style="max-width:440px;width:100%">
-    <h3>BUSCAR CLIENTE</h3>
-    <input class="sel-input" type="text" placeholder="Buscar por nombre..." oninput="filtrarClientes(this.value)" id="buscador-clientes">
-    <div class="sel-list" id="lista-clientes" style="max-height:280px"></div>
-  </div>
-  <button class="btn-continuar" id="btn-continuar-cliente" disabled onclick="irACatalogo()">Ver Catálogo →</button>
-  <button style="margin-top:12px;background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;font-weight:600" onclick="volverASelector()">← Cambiar vendedor</button>
+  <div class="ham-overlay-bg" onclick="cerrarMenu()"></div>
 </div>
 
 <!-- APP PRINCIPAL -->
@@ -229,7 +275,14 @@ main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
   <main>
     <div class="topbar">
-      <div class="topbar-search">
+      <div class="topbar-left">
+        <button class="ham-btn" onclick="abrirMenu()" title="Menú">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="vendedor-badge" id="topbar-vendedor">Sin vendedor</span>
+        <span class="cliente-badge" id="topbar-cliente">Sin cliente</span>
+      </div>
+      <div class="topbar-search" style="flex:1;margin-left:10px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" placeholder="Buscar producto..." id="search-input" oninput="onSearch(this.value)">
       </div>
@@ -307,8 +360,7 @@ try {
 // ── ESTADO ──
 let productos = [];
 let clientes = [];
-let vendedores = ['Carlos','Lucía','Marcos','Sofía','Miguel'];
-// ↑ Editá esta lista con los nombres de tus vendedores
+let vendedores = []; // Se cargan desde Firebase
 
 let estado = {
   vendedor: null,
@@ -338,84 +390,159 @@ function toast(msg) {
   clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',1800);
 }
 
-// ── PANTALLA 1: VENDEDORES ──
-function renderVendedores() {
-  const el = document.getElementById('lista-vendedores');
-  el.innerHTML = vendedores.map(v => `
-    <button class="sel-btn${estado.vendedor===v?' selected':''}" onclick="seleccionarVendedor('${v}')">
-      <div class="sel-avatar">${v.substring(0,2).toUpperCase()}</div>
-      ${v}
-    </button>`).join('');
+// ── MENÚ HAMBURGUESA ──
+let _hamVendedorTemp = null;
+let _hamClienteTemp = null;
+let _clientesFiltrados = [];
+let _hamPaso = 'vendedor'; // 'vendedor' | 'cliente' | 'sesion'
+
+function abrirMenu() {
+  document.getElementById('hamburger-menu').classList.remove('hidden');
+  if (estado.vendedor) {
+    _hamPaso = 'sesion';
+    mostrarHamSesion();
+  } else {
+    _hamPaso = 'vendedor';
+    mostrarHamVendedor();
+  }
 }
 
-function seleccionarVendedor(nombre) {
-  estado.vendedor = nombre;
-  renderVendedores();
-  document.getElementById('btn-continuar-vendedor').disabled = false;
+function cerrarMenu() {
+  document.getElementById('hamburger-menu').classList.add('hidden');
+  _hamVendedorTemp = null;
+  _hamClienteTemp = null;
 }
 
-function irACliente() {
-  if (!estado.vendedor) return;
-  document.getElementById('nombre-vendedor-titulo').textContent = estado.vendedor;
-  document.getElementById('screen-selector').classList.add('hidden');
-  document.getElementById('screen-cliente').classList.remove('hidden');
-  document.getElementById('buscador-clientes').value='';
+function mostrarHamVendedor() {
+  document.getElementById('ham-step-vendedor').style.display = 'block';
+  document.getElementById('ham-step-cliente').style.display = 'none';
+  document.getElementById('ham-sesion').style.display = 'none';
+  document.getElementById('ham-title').textContent = '¿Quién sos?';
+  renderHamVendedores();
+}
+
+function mostrarHamCliente() {
+  document.getElementById('ham-step-vendedor').style.display = 'none';
+  document.getElementById('ham-step-cliente').style.display = 'block';
+  document.getElementById('ham-sesion').style.display = 'none';
+  document.getElementById('ham-title').textContent = 'Seleccioná el cliente';
+  document.getElementById('buscador-clientes').value = '';
   filtrarClientes('');
 }
 
-// ── PANTALLA 2: CLIENTES ──
-let _clientesFiltrados = [];
-function filtrarClientes(q) {
-  _clientesFiltrados = q
-    ? clientes.filter(c=>(c.nombre||'').toLowerCase().includes(q.toLowerCase()))
-    : [...clientes];
-  renderListaClientes();
+function mostrarHamSesion() {
+  document.getElementById('ham-step-vendedor').style.display = 'none';
+  document.getElementById('ham-step-cliente').style.display = 'none';
+  document.getElementById('ham-sesion').style.display = 'block';
+  document.getElementById('ham-title').textContent = 'Sesión activa';
+  document.getElementById('sesion-vendedor-nombre').textContent = estado.vendedor || '—';
+  const c = estado.cliente;
+  document.getElementById('sesion-cliente-nombre').textContent = c ? (c.nombre+' '+(c.apellido||'')).trim() : 'Sin cliente';
+  document.getElementById('sesion-cliente-negocio').textContent = c?.negocio || '';
 }
 
-function renderListaClientes() {
-  const el = document.getElementById('lista-clientes');
-  if (!_clientesFiltrados.length) {
-    el.innerHTML = '<div style="text-align:center;padding:20px;color:#bbb;font-size:13px">Sin coincidencias</div>';
+function renderHamVendedores() {
+  const el = document.getElementById('ham-lista-vendedores');
+  if (!vendedores.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Sin vendedores cargados.<br>Agregalos desde el panel.</div>';
     return;
   }
-  el.innerHTML = _clientesFiltrados.map(c => `
-    <button class="sel-btn${estado.cliente?.id===c.id?' selected':''}" onclick="seleccionarCliente('${c.id}')">
-      <div class="sel-avatar">${(c.nombre||'?').substring(0,2).toUpperCase()}</div>
-      <div>
-        <div style="font-size:14px;font-weight:700">${c.nombre}</div>
-        ${c.direccion?`<div style="font-size:11px;color:#aaa;margin-top:1px">${c.direccion}</div>`:''}
+  el.innerHTML = vendedores.map(v => `
+    <button class="ham-item${_hamVendedorTemp?.id===v.id?' selected':''}" onclick="seleccionarHamVendedor('${v.id}')">
+      <div class="ham-avatar">${(v.nombre||'?').substring(0,2).toUpperCase()}</div>
+      <div class="ham-item-info">
+        <div class="ham-item-name">${v.nombre}</div>
+        <div class="ham-item-sub">🚗 ${v.patente||'Sin patente'} · 📞 ${v.telefono||'—'}</div>
       </div>
     </button>`).join('');
 }
 
-function seleccionarCliente(id) {
-  estado.cliente = clientes.find(c=>c.id===id);
-  document.getElementById('btn-continuar-cliente').disabled = !estado.cliente;
-  filtrarClientes(document.getElementById('buscador-clientes').value);
+function seleccionarHamVendedor(id) {
+  _hamVendedorTemp = vendedores.find(v=>v.id===id);
+  renderHamVendedores();
 }
 
-function irACatalogo() {
-  if (!estado.cliente) return;
-  document.getElementById('screen-cliente').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
-  document.getElementById('sidebar-cliente-nombre').textContent = estado.cliente.nombre;
-  document.getElementById('sidebar-vendedor-nombre').textContent = estado.vendedor;
+function confirmarVendedor() {
+  if (!_hamVendedorTemp) { toast('⚠ Seleccioná un vendedor'); return; }
+  estado.vendedor = _hamVendedorTemp.nombre;
+  actualizarBadges();
+  mostrarHamCliente();
+}
+
+function filtrarClientes(q) {
+  _clientesFiltrados = q
+    ? clientes.filter(c=>((c.nombre||'')+(c.apellido||'')+(c.negocio||'')).toLowerCase().includes(q.toLowerCase()))
+    : [...clientes];
+  renderHamClientes();
+}
+
+function renderHamClientes() {
+  const el = document.getElementById('ham-lista-clientes');
+  if (!_clientesFiltrados.length) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:#bbb;font-size:13px">Sin coincidencias</div>';
+    return;
+  }
+  el.innerHTML = _clientesFiltrados.map(c => `
+    <button class="ham-item${_hamClienteTemp?.id===c.id?' selected':''}" onclick="seleccionarHamCliente('${c.id}')">
+      <div class="ham-avatar" style="${_hamClienteTemp?.id===c.id?'background:#6c47ff;color:#fff':''}">${((c.nombre||'?')[0]+(c.apellido||'?')[0]).toUpperCase()}</div>
+      <div class="ham-item-info">
+        <div class="ham-item-name">${c.nombre} ${c.apellido||''}</div>
+        <div class="ham-item-sub">🏪 ${c.negocio||'—'} · 📍 ${c.direccion||'—'}</div>
+      </div>
+    </button>`).join('');
+}
+
+function seleccionarHamCliente(id) {
+  _hamClienteTemp = clientes.find(c=>c.id===id);
+  renderHamClientes();
+}
+
+function confirmarCliente() {
+  if (!_hamClienteTemp) { toast('⚠ Seleccioná un cliente'); return; }
+  estado.cliente = _hamClienteTemp;
   estado.carrito = {};
+  actualizarBadges();
+  cerrarMenu();
+  actualizarFab();
   renderSidebarCats();
   renderProductos();
-  actualizarFab();
+  document.getElementById('sidebar-cliente-nombre').textContent = (estado.cliente.nombre+' '+(estado.cliente.apellido||'')).trim();
+  document.getElementById('sidebar-vendedor-nombre').textContent = estado.vendedor;
 }
 
-function volverASelector() {
+function volverAVendedor() {
+  _hamPaso = 'vendedor';
+  mostrarHamVendedor();
+}
+
+function cambiarCliente() {
+  _hamClienteTemp = null;
+  estado.cliente = null;
+  estado.carrito = {};
+  actualizarBadges();
+  actualizarFab();
+  mostrarHamCliente();
+}
+
+function cerrarSesion() {
   estado.vendedor = null;
   estado.cliente = null;
   estado.carrito = {};
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('screen-cliente').classList.add('hidden');
-  document.getElementById('screen-selector').classList.remove('hidden');
-  document.getElementById('btn-continuar-vendedor').disabled = true;
-  renderVendedores();
+  _hamVendedorTemp = null;
+  _hamClienteTemp = null;
+  actualizarBadges();
+  actualizarFab();
+  mostrarHamVendedor();
 }
+
+function actualizarBadges() {
+  const vEl = document.getElementById('topbar-vendedor');
+  const cEl = document.getElementById('topbar-cliente');
+  vEl.textContent = estado.vendedor || 'Sin vendedor';
+  cEl.textContent = estado.cliente ? ((estado.cliente.nombre+' '+(estado.cliente.apellido||'')).trim()+' · '+estado.cliente.negocio) : 'Sin cliente';
+}
+
+function volverASelector() { cerrarSesion(); }
 
 // ── SIDEBAR CATEGORÍAS ──
 function renderSidebarCats() {
@@ -682,9 +809,18 @@ async function init() {
     if (!firebaseOK) throw new Error('sin firebase');
     const snap = await dbFS.collection('clientes').get();
     clientes = snap.docs.map(d=>({id:d.id,...d.data()}));
-    clientes.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+    clientes.sort((a,b)=>((a.nombre||'')+(a.apellido||'')).localeCompare((b.nombre||'')+(b.apellido||'')));
   } catch(e) {
     try { const db=JSON.parse(localStorage.getItem('golosinas_admin')||'{}'); clientes=db.clientes||[]; } catch(e2){}
+  }
+  // Cargar vendedores
+  try {
+    if (!firebaseOK) throw new Error('sin firebase');
+    const snapV = await dbFS.collection('vendedores').get();
+    vendedores = snapV.docs.map(d=>({id:d.id,...d.data()}));
+    vendedores.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||''));
+  } catch(e) {
+    try { const db=JSON.parse(localStorage.getItem('golosinas_admin')||'{}'); vendedores=db.vendedores||[]; } catch(e2){}
   }
   _clientesFiltrados = [...clientes];
   document.getElementById('loading-overlay').classList.add('hidden');

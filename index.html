@@ -377,37 +377,70 @@ input[type=file]{display:none}
     <div class="modal-body">
       <div class="field-row">
         <div class="field">
-          <label>NOMBRE / RAZÓN SOCIAL <em>*</em></label>
-          <input type="text" id="fc-nombre" placeholder="Ej: Almacén Don Juan">
+          <label>NOMBRE <em>*</em></label>
+          <input type="text" id="fc-nombre" placeholder="Ej: Juan">
           <span class="err-msg" id="err-fc-nombre"></span>
         </div>
         <div class="field">
-          <label>CONTACTO</label>
-          <input type="text" id="fc-contacto" placeholder="Nombre del responsable">
+          <label>APELLIDO <em>*</em></label>
+          <input type="text" id="fc-apellido" placeholder="Ej: García">
+          <span class="err-msg" id="err-fc-apellido"></span>
         </div>
+      </div>
+      <div class="field">
+        <label>NOMBRE DEL NEGOCIO <em>*</em></label>
+        <input type="text" id="fc-negocio" placeholder="Ej: Almacén Don Juan">
+        <span class="err-msg" id="err-fc-negocio"></span>
       </div>
       <div class="field-row">
         <div class="field">
-          <label>TELÉFONO</label>
+          <label>TELÉFONO <em>*</em></label>
           <input type="text" id="fc-telefono" placeholder="+54 9 ...">
+          <span class="err-msg" id="err-fc-telefono"></span>
         </div>
         <div class="field">
-          <label>VENDEDOR ASIGNADO</label>
-          <input type="text" id="fc-vendedor" placeholder="Nombre del vendedor">
+          <label>DIRECCIÓN <em>*</em></label>
+          <input type="text" id="fc-direccion" placeholder="Calle, número, ciudad">
+          <span class="err-msg" id="err-fc-direccion"></span>
         </div>
-      </div>
-      <div class="field">
-        <label>DIRECCIÓN</label>
-        <input type="text" id="fc-direccion" placeholder="Calle, número, ciudad">
-      </div>
-      <div class="field">
-        <label>NOTAS</label>
-        <textarea id="fc-notas" placeholder="Observaciones, días de visita, condiciones especiales..."></textarea>
       </div>
     </div>
     <div class="modal-ftr">
       <button class="btn-cancel" onclick="closeModalCliente()">Cancelar</button>
       <button class="btn-submit" id="btn-submit-cliente" onclick="submitCliente()">+ Agregar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VENDEDOR -->
+<div class="overlay" id="overlay-vendedor" style="display:none">
+  <div class="modal">
+    <div class="modal-hdr">
+      <h2 id="modal-vendedor-title">Nuevo Vendedor</h2>
+      <button class="btn-close" onclick="closeModalVendedor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>NOMBRE Y APELLIDO <em>*</em></label>
+        <input type="text" id="fv-nombre" placeholder="Ej: Carlos García">
+        <span class="err-msg" id="err-fv-nombre"></span>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>PATENTE <em>*</em></label>
+          <input type="text" id="fv-patente" placeholder="Ej: AB 123 CD">
+          <span class="err-msg" id="err-fv-patente"></span>
+        </div>
+        <div class="field">
+          <label>TELÉFONO <em>*</em></label>
+          <input type="text" id="fv-telefono" placeholder="+54 9 ...">
+          <span class="err-msg" id="err-fv-telefono"></span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn-cancel" onclick="closeModalVendedor()">Cancelar</button>
+      <button class="btn-submit" id="btn-submit-vendedor" onclick="submitVendedor()">+ Agregar</button>
     </div>
   </div>
 </div>
@@ -467,7 +500,7 @@ try {
 
 // ── DB LOCAL ──
 function loadDB() {
-  try { return JSON.parse(localStorage.getItem('golosinas_admin')||'null') || {prods:[],clientes:[],nid:1}; } catch(e) { return {prods:[],clientes:[],nid:1}; }
+  try { return JSON.parse(localStorage.getItem('golosinas_admin')||'null') || {prods:[],clientes:[],vendedores:[],nid:1}; } catch(e) { return {prods:[],clientes:[],vendedores:[],nid:1}; }
 }
 function saveDB() { localStorage.setItem('golosinas_admin', JSON.stringify(db)); }
 let db = loadDB();
@@ -492,7 +525,7 @@ const CATS = [
   {id:'otros',      label:'Otros',      icon:'📦'},
 ];
 
-let S = { seccion:'productos', cat:'todos', search:'', confirmDel:{}, editingProd:null, editingCliente:null };
+let S = { seccion:'productos', cat:'todos', search:'', confirmDel:{}, editingProd:null, editingCliente:null, editingVendedor:null };
 let photoB64 = '';
 let _pedidosCache = [];
 let _pedidosTab = 'nuevos';
@@ -512,6 +545,10 @@ function renderSidebar() {
     <button class="nav-item${S.seccion==='clientes'?' active':''}" onclick="setSeccion('clientes')">
       👥 Clientes
       <span class="nav-n">${totalClientes}</span>
+    </button>
+    <button class="nav-item${S.seccion==='vendedores'?' active':''}" onclick="setSeccion('vendedores')">
+      🚗 Vendedores
+      <span class="nav-n">${db.vendedores?.length||0}</span>
     </button>
     <div style="height:1px;background:#f0f0f0;margin:8px 10px"></div>
     <div style="font-size:10px;font-weight:700;color:#bbb;letter-spacing:.1em;padding:4px 12px 6px">CATÁLOGO</div>
@@ -539,6 +576,7 @@ function setSeccion(sec, cat='todos') {
   S.search = '';
   S.confirmDel = {};
   if (sec==='pedidos') { cargarPedidos().then(()=>{ renderSidebar(); renderPedidos(); }); return; }
+  if (sec==='vendedores') { renderSidebar(); renderVendedores(); return; }
   if (sec==='estadisticas') { cargarPedidos().then(()=>{ renderEstadisticas(); }); renderSidebar(); return; }
   renderSidebar();
   renderPage();
@@ -547,6 +585,7 @@ function setSeccion(sec, cat='todos') {
 function renderPage() {
   if (S.seccion==='pedidos') { renderPedidos(); return; }
   if (S.seccion==='clientes') { renderClientes(); return; }
+  if (S.seccion==='vendedores') { renderVendedores(); return; }
   if (S.seccion==='estadisticas') { renderEstadisticas(); return; }
   if (S.seccion==='config') { renderConfig(); return; }
   renderProductos();
@@ -618,6 +657,11 @@ async function cargarProductosFirebase() {
     const snap = await dbFS.collection('clientes').get();
     db.clientes = snap.docs.map(d=>({id:d.id,...d.data()}));
   } catch(e) { if (!db.clientes) db.clientes = []; }
+  try {
+    if (!firebaseOK) throw new Error('sin firebase');
+    const snapV = await dbFS.collection('vendedores').get();
+    db.vendedores = snapV.docs.map(d=>({id:d.id,...d.data()}));
+  } catch(e) { if (!db.vendedores) db.vendedores = []; }
 }
 
 // ── PRODUCTOS ──
@@ -805,7 +849,7 @@ function delProd(id) {
 function renderClientes() {
   const clientes = db.clientes || [];
   const q = S.search.toLowerCase();
-  const filtered = q ? clientes.filter(c=>(c.nombre+c.contacto+c.vendedor+c.telefono).toLowerCase().includes(q)) : clientes;
+  const filtered = q ? clientes.filter(c=>((c.nombre||'')+(c.apellido||'')+(c.negocio||'')+(c.telefono||'')+(c.direccion||'')).toLowerCase().includes(q)) : clientes;
   document.getElementById('page').innerHTML = `
     <div class="page-hdr">
       <div class="page-title-group">
@@ -819,12 +863,12 @@ function renderClientes() {
     </div>
     <div class="stats-row">
       <div class="stat-card"><div class="stat-num">${clientes.length}</div><div class="stat-label">TOTAL CLIENTES</div></div>
-      <div class="stat-card"><div class="stat-num" style="color:#6c47ff">${[...new Set(clientes.map(c=>c.vendedor).filter(Boolean))].length}</div><div class="stat-label">VENDEDORES</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#6c47ff">${(db.vendedores||[]).length}</div><div class="stat-label">VENDEDORES</div></div>
     </div>
     <div class="search-row">
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" placeholder="Buscar cliente, vendedor, teléfono..." value="${S.search}" oninput="S.search=this.value;renderClientes()">
+        <input type="text" placeholder="Buscar por nombre, negocio, teléfono..." value="${S.search}" oninput="S.search=this.value;renderClientes()">
         ${S.search?`<button class="sc" onclick="S.search='';renderClientes()">✕</button>`:''}
       </div>
     </div>
@@ -835,23 +879,22 @@ function renderClientes() {
 }
 
 function renderClienteCard(c) {
-  const initiales = (c.nombre||'?').substring(0,2).toUpperCase();
+  const inicial = ((c.nombre||'?')[0]+(c.apellido||'?')[0]).toUpperCase();
   const isDel = S.confirmDel['c_'+c.id];
   return `<div class="cliente-card">
     <div class="cliente-hdr">
-      <div class="cliente-avatar">${initiales}</div>
+      <div class="cliente-avatar">${inicial}</div>
       <div class="cliente-info">
-        <div class="cliente-nombre">${c.nombre}</div>
-        ${c.contacto?`<div class="cliente-razon">${c.contacto}</div>`:''}
+        <div class="cliente-nombre">${c.nombre} ${c.apellido||''}</div>
+        <div class="cliente-razon">${c.negocio||''}</div>
       </div>
     </div>
     <div class="cliente-datos">
       ${c.telefono?`<div class="cliente-dato"><span>📞</span><span>${c.telefono}</span></div>`:''}
       ${c.direccion?`<div class="cliente-dato"><span>📍</span><span>${c.direccion}</span></div>`:''}
-      ${c.notas?`<div class="cliente-dato"><span>📝</span><span style="color:#aaa">${c.notas.substring(0,60)}${c.notas.length>60?'…':''}</span></div>`:''}
     </div>
     <div class="cliente-footer">
-      <span class="cliente-vendedor">${c.vendedor?'👤 '+c.vendedor:'Sin vendedor'}</span>
+      <span class="cliente-vendedor">🏪 ${c.negocio||'Sin negocio'}</span>
       <div class="card-actions">
         <button class="btn-edit" onclick="editCliente('${c.id}')">✎ Editar</button>
         <button class="btn-del${isDel?' confirm':''}" onclick="delCliente('${c.id}')">
@@ -867,12 +910,13 @@ function openModalCliente(cliente=null) {
   document.getElementById('modal-cliente-title').textContent = cliente ? 'Editar Cliente' : 'Nuevo Cliente';
   document.getElementById('btn-submit-cliente').textContent = cliente ? '✓ Guardar Cambios' : '+ Agregar';
   document.getElementById('fc-nombre').value = cliente?.nombre || '';
-  document.getElementById('fc-contacto').value = cliente?.contacto || '';
+  document.getElementById('fc-apellido').value = cliente?.apellido || '';
+  document.getElementById('fc-negocio').value = cliente?.negocio || '';
   document.getElementById('fc-telefono').value = cliente?.telefono || '';
-  document.getElementById('fc-vendedor').value = cliente?.vendedor || '';
   document.getElementById('fc-direccion').value = cliente?.direccion || '';
-  document.getElementById('fc-notas').value = cliente?.notas || '';
-  document.getElementById('err-fc-nombre').textContent = '';
+  ['fc-nombre','fc-apellido','fc-negocio','fc-telefono','fc-direccion'].forEach(id=>{
+    const e=document.getElementById('err-'+id); if(e) e.textContent='';
+  });
   document.getElementById('overlay-cliente').style.display='flex';
   setTimeout(()=>document.getElementById('fc-nombre').focus(),50);
 }
@@ -881,14 +925,21 @@ function closeModalCliente() { document.getElementById('overlay-cliente').style.
 
 function submitCliente() {
   const nombre    = document.getElementById('fc-nombre').value.trim();
-  const contacto  = document.getElementById('fc-contacto').value.trim();
+  const apellido  = document.getElementById('fc-apellido').value.trim();
+  const negocio   = document.getElementById('fc-negocio').value.trim();
   const telefono  = document.getElementById('fc-telefono').value.trim();
-  const vendedor  = document.getElementById('fc-vendedor').value.trim();
   const direccion = document.getElementById('fc-direccion').value.trim();
-  const notas     = document.getElementById('fc-notas').value.trim();
-  if (!nombre) { document.getElementById('err-fc-nombre').textContent='Requerido'; return; }
+  let ok=true;
+  const err=(id,m)=>{const e=document.getElementById('err-'+id);if(e)e.textContent=m;ok=false;};
+  const clr=(id)=>{const e=document.getElementById('err-'+id);if(e)e.textContent='';};
+  !nombre?err('fc-nombre','Requerido'):clr('fc-nombre');
+  !apellido?err('fc-apellido','Requerido'):clr('fc-apellido');
+  !negocio?err('fc-negocio','Requerido'):clr('fc-negocio');
+  !telefono?err('fc-telefono','Requerido'):clr('fc-telefono');
+  !direccion?err('fc-direccion','Requerido'):clr('fc-direccion');
+  if(!ok) return;
   if (!db.clientes) db.clientes = [];
-  const cliente = {nombre,contacto,telefono,vendedor,direccion,notas};
+  const cliente = {nombre,apellido,negocio,telefono,direccion};
   if (S.editingCliente) {
     const i=db.clientes.findIndex(c=>c.id===S.editingCliente);
     if(i!==-1){db.clientes[i]={...db.clientes[i],...cliente};guardarClienteFirebase(db.clientes[i]);}
@@ -917,13 +968,134 @@ function delCliente(id) {
 function exportClientes() {
   const clientes = db.clientes || [];
   if (!clientes.length) { toast('⚠ No hay clientes para exportar'); return; }
-  const cab = 'nombre,contacto,telefono,vendedor,direccion,notas';
+  const cab = 'nombre,apellido,negocio,telefono,direccion';
   const esc = v => (String(v||'').includes(','))? '"'+String(v||'')+'"' : String(v||'');
-  const filas = clientes.map(c=>[esc(c.nombre),esc(c.contacto),esc(c.telefono),esc(c.vendedor),esc(c.direccion),esc(c.notas)].join(','));
+  const filas = clientes.map(c=>[esc(c.nombre),esc(c.apellido),esc(c.negocio),esc(c.telefono),esc(c.direccion)].join(','));
   const csv = [cab,...filas].join('\n');
   const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='clientes.csv';a.click();
   toast('✓ Clientes exportados');
+}
+
+// ── VENDEDORES ──
+function renderVendedores() {
+  const vendedores = db.vendedores || [];
+  const q = S.search.toLowerCase();
+  const filtered = q ? vendedores.filter(v=>((v.nombre||'')+(v.patente||'')+(v.telefono||'')).toLowerCase().includes(q)) : vendedores;
+  document.getElementById('page').innerHTML = `
+    <div class="page-hdr">
+      <div class="page-title-group">
+        <h1>🚗 Vendedores</h1>
+        <p>${filtered.length} de ${vendedores.length} vendedor${vendedores.length!==1?'es':''}</p>
+      </div>
+      <div class="hdr-actions">
+        <button class="btn-new" onclick="openModalVendedor()">+ Nuevo Vendedor</button>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num">${vendedores.length}</div><div class="stat-label">TOTAL VENDEDORES</div></div>
+    </div>
+    <div class="search-row">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" placeholder="Buscar por nombre, patente, teléfono..." value="${S.search}" oninput="S.search=this.value;renderVendedores()">
+        ${S.search?`<button class="sc" onclick="S.search='';renderVendedores()">✕</button>`:''}
+      </div>
+    </div>
+    ${filtered.length===0
+      ? `<div class="clientes-grid"><div class="empty" style="grid-column:1/-1"><div class="icon">🚗</div><h3>${S.search?'Sin resultados':'Sin vendedores'}</h3><p>${S.search?'No hay coincidencias':'Hacé clic en "+ Nuevo Vendedor" para empezar'}</p></div></div>`
+      : `<div class="clientes-grid">${filtered.map(v=>renderVendedorCard(v)).join('')}</div>`
+    }`;
+}
+
+function renderVendedorCard(v) {
+  const inicial = (v.nombre||'?').substring(0,2).toUpperCase();
+  const isDel = S.confirmDel['v_'+v.id];
+  return `<div class="cliente-card">
+    <div class="cliente-hdr">
+      <div class="cliente-avatar" style="background:#e8fff0;color:#00b341">${inicial}</div>
+      <div class="cliente-info">
+        <div class="cliente-nombre">${v.nombre}</div>
+        <div class="cliente-razon">Patente: ${v.patente||'—'}</div>
+      </div>
+    </div>
+    <div class="cliente-datos">
+      ${v.telefono?`<div class="cliente-dato"><span>📞</span><span>${v.telefono}</span></div>`:''}
+      ${v.patente?`<div class="cliente-dato"><span>🚗</span><span>${v.patente}</span></div>`:''}
+    </div>
+    <div class="cliente-footer">
+      <span class="cliente-vendedor" style="background:#e8fff0;color:#00b341">Vendedor activo</span>
+      <div class="card-actions">
+        <button class="btn-edit" onclick="editVendedor('${v.id}')">✎ Editar</button>
+        <button class="btn-del${isDel?' confirm':''}" onclick="delVendedor('${v.id}')">
+          ${isDel?'⚠ Confirmar':'✕'}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openModalVendedor(vendedor=null) {
+  S.editingVendedor = vendedor?.id || null;
+  document.getElementById('modal-vendedor-title').textContent = vendedor ? 'Editar Vendedor' : 'Nuevo Vendedor';
+  document.getElementById('btn-submit-vendedor').textContent = vendedor ? '✓ Guardar Cambios' : '+ Agregar';
+  document.getElementById('fv-nombre').value = vendedor?.nombre || '';
+  document.getElementById('fv-patente').value = vendedor?.patente || '';
+  document.getElementById('fv-telefono').value = vendedor?.telefono || '';
+  ['fv-nombre','fv-patente','fv-telefono'].forEach(id=>{
+    const e=document.getElementById('err-'+id); if(e) e.textContent='';
+  });
+  document.getElementById('overlay-vendedor').style.display='flex';
+  setTimeout(()=>document.getElementById('fv-nombre').focus(),50);
+}
+
+function closeModalVendedor() { document.getElementById('overlay-vendedor').style.display='none'; S.editingVendedor=null; }
+
+function submitVendedor() {
+  const nombre   = document.getElementById('fv-nombre').value.trim();
+  const patente  = document.getElementById('fv-patente').value.trim();
+  const telefono = document.getElementById('fv-telefono').value.trim();
+  let ok=true;
+  const err=(id,m)=>{const e=document.getElementById('err-'+id);if(e)e.textContent=m;ok=false;};
+  const clr=(id)=>{const e=document.getElementById('err-'+id);if(e)e.textContent='';};
+  !nombre?err('fv-nombre','Requerido'):clr('fv-nombre');
+  !patente?err('fv-patente','Requerido'):clr('fv-patente');
+  !telefono?err('fv-telefono','Requerido'):clr('fv-telefono');
+  if(!ok) return;
+  if (!db.vendedores) db.vendedores = [];
+  const vendedor = {nombre,patente,telefono};
+  if (S.editingVendedor) {
+    const i=db.vendedores.findIndex(v=>v.id===S.editingVendedor);
+    if(i!==-1){db.vendedores[i]={...db.vendedores[i],...vendedor};guardarVendedorFirebase(db.vendedores[i]);}
+    toast('✓ Vendedor actualizado');
+  } else {
+    vendedor.id=genId(); vendedor.creadoEn=new Date().toISOString();
+    db.vendedores.push(vendedor); guardarVendedorFirebase(vendedor);
+    toast('✓ Vendedor agregado');
+  }
+  saveDB(); closeModalVendedor(); renderVendedores(); renderSidebar();
+}
+
+function editVendedor(id) { const v=(db.vendedores||[]).find(x=>x.id===id); if(v) openModalVendedor(v); }
+function delVendedor(id) {
+  if (S.confirmDel['v_'+id]) {
+    db.vendedores=(db.vendedores||[]).filter(v=>v.id!==id);
+    delete S.confirmDel['v_'+id]; saveDB();
+    eliminarVendedorFirebase(id);
+    toast('Vendedor eliminado'); renderVendedores(); renderSidebar();
+  } else {
+    S.confirmDel['v_'+id]=true; renderVendedores();
+    setTimeout(()=>{delete S.confirmDel['v_'+id];renderVendedores();},3000);
+  }
+}
+
+async function guardarVendedorFirebase(v) {
+  if (!firebaseOK) return;
+  try { await dbFS.collection('vendedores').doc(v.id).set({nombre:v.nombre,patente:v.patente,telefono:v.telefono,creadoEn:v.creadoEn||new Date().toISOString()}); } catch(e){}
+}
+async function eliminarVendedorFirebase(id) {
+  if (!firebaseOK) return;
+  try { await dbFS.collection('vendedores').doc(id).delete(); } catch(e){}
 }
 
 // ── PEDIDOS ──
