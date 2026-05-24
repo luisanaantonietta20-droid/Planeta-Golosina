@@ -456,9 +456,9 @@ input[type=file]{display:none}
       <div id="import-drop-zone" class="import-drop-zone" onclick="document.getElementById('import-file-input').click()">
         <div class="dz-icon">📥</div>
         <h3>Arrastrá o hacé clic para subir</h3>
-        <p>Archivo CSV con columnas: nombre, cat, marca, precio, unidad, detalle</p>
+        <p>CSV o Excel (.xlsx) con columnas: nombre, cat, marca, precio, unidad, detalle</p>
       </div>
-      <input type="file" id="import-file-input" accept=".csv" onchange="handleImportFile(this)">
+      <input type="file" id="import-file-input" accept=".csv,.xlsx" onchange="handleImportFile(this)">
       <div id="import-progress-wrap" style="display:none">
         <div class="import-progress-bar-bg"><div class="import-progress-bar" id="import-progress-bar"></div></div>
         <div style="font-size:12px;color:#888;font-weight:600;margin-bottom:8px" id="import-progress-label">Procesando...</div>
@@ -1323,6 +1323,71 @@ function renderConfig() {
     </div>`;
 }
 
+// ── IMPORTAR XLSX ──
+async function handleImportXlsx(file) {
+  // Convertir xlsx a CSV usando SheetJS via CDN
+  const XLSX_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  if (!window.XLSX) {
+    await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=XLSX_CDN; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+  }
+  document.getElementById('import-drop-zone').style.display='none';
+  document.getElementById('import-progress-wrap').style.display='block';
+  document.getElementById('import-log').innerHTML='';
+  document.getElementById('import-summary').className='import-summary';
+  addLog('📊 Leyendo archivo Excel...','info');
+  try {
+    const buf = await file.arrayBuffer();
+    const wb  = XLSX.read(buf, {type:'array'});
+    const ws  = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+    if(!rows.length){ addLog('⚠ El archivo está vacío','err'); return; }
+    // Normalizar claves (puede venir con mayúsculas o espacios)
+    const norm = rows.map(r => {
+      const o={};
+      Object.keys(r).forEach(k=>{ o[k.toLowerCase().trim().replace(/\s+/g,'_').replace(/[^a-z_]/g,'')]=String(r[k]||'').trim(); });
+      // Mapear columnas alternativas
+      if(!o.nombre && o.nombre_del_producto) o.nombre=o.nombre_del_producto;
+      if(!o.cat && o.categor_a) o.cat=o.categor_a;
+      if(!o.cat && o.categoria) o.cat=o.categoria;
+      if(!o.precio && o.precio_ars) o.precio=o.precio_ars;
+      if(!o.unidad && o.unidad_de_venta) o.unidad=o.unidad_de_venta;
+      if(!o.detalle && o.descripci_n) o.detalle=o.descripci_n;
+      if(!o.detalle && o.descripcion) o.detalle=o.descripcion;
+      return o;
+    }).filter(r=>r.nombre);
+    addLog(`📋 ${norm.length} producto${norm.length!==1?'s':''} encontrado${norm.length!==1?'s':''}...`,'info');
+    const total=norm.length; let ok=0,errores=0;
+    for(let i=0;i<norm.length;i++){
+      const row=norm[i];
+      const pct=Math.round(((ok+errores+1)/total)*100);
+      document.getElementById('import-progress-bar').style.width=pct+'%';
+      const nombre=row.nombre;
+      const cat=(row.cat||'otros').toLowerCase();
+      const marca=row.marca||'';
+      const precio=parseFloat(String(row.precio||'0').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'))||0;
+      const unidad=row.unidad||'';
+      const detalle=row.detalle||'';
+      const normalizar=s=>String(s||'').trim().toLowerCase();
+      const existente=db.prods.find(p=>normalizar(p.nombre)===normalizar(nombre));
+      const prod=existente?{...existente,cat,marca,precio,unidad,detalle}:{id:genId(),nombre,cat,marca,precio,unidad,detalle,foto:'',creadoEn:new Date().toISOString()};
+      try{
+        await guardarProductoFirebase(prod);
+        if(existente){const idx=db.prods.findIndex(p=>p.id===existente.id);db.prods[idx]=prod;addLog(`↻ "${nombre}" actualizado — $${fmt(precio)}`,'ok');}
+        else{db.prods.push(prod);addLog(`✓ "${nombre}" agregado — $${fmt(precio)}`,'ok');}
+        saveDB();ok++;
+      }catch(e){addLog(`✗ "${nombre}": error al guardar`,'err');errores++;}
+      await new Promise(r=>setTimeout(r,20));
+    }
+    _importing=false;
+    document.getElementById('import-progress-bar').style.width='100%';
+    const sumEl=document.getElementById('import-summary');
+    sumEl.innerHTML=`✅ <strong>${ok}</strong> producto${ok!==1?'s':''} importado${ok!==1?'s':''}${errores>0?` · <span style="color:#b91c1c">⚠ ${errores} con error</span>`:''}`;
+    sumEl.className='import-summary show';
+    renderSidebar();renderProductos();
+    toast(`✓ ${ok} producto${ok!==1?'s':''} importado${ok!==1?'s':''}`)
+  } catch(e){ addLog('✗ Error al leer el archivo: '+e.message,'err'); console.error(e); }
+}
+
 // ── IMPORT CSV ──
 function openImportModal() {
   _importing=false;
@@ -1378,7 +1443,10 @@ function parseCSV(text) {
 
 async function handleImportFile(input) {
   const file=input.files[0]; if(!file) return;
-  if(!file.name.toLowerCase().endsWith('.csv')){toast('⚠ Solo se aceptan archivos .csv');return;}
+  const isXlsx = file.name.toLowerCase().endsWith('.xlsx');
+  const isCsv  = file.name.toLowerCase().endsWith('.csv');
+  if(!isXlsx && !isCsv){toast('⚠ Solo se aceptan archivos .csv o .xlsx');return;}
+  if(isXlsx){ await handleImportXlsx(file); return; }
   document.getElementById('import-drop-zone').style.display='none';
   document.getElementById('import-progress-wrap').style.display='block';
   document.getElementById('import-log').innerHTML='';
