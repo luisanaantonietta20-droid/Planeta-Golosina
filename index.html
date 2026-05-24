@@ -695,8 +695,6 @@ function renderCard(p) {
 }
 
 // ── MODAL PRODUCTO ──
-let photoB64 = '';
-
 function openModal(prod=null) {
   S.editingProd = prod?.id || null;
   photoB64 = prod?.foto || '';
@@ -1154,7 +1152,6 @@ function renderConfig() {
 }
 
 // ── IMPORT CSV ──
-let _importing = false;
 function openImportModal() {
   _importing=false;
   document.getElementById('import-progress-wrap').style.display='none';
