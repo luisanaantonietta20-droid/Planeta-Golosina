@@ -782,19 +782,18 @@ async function enviarPedido() {
 
 function nuevoPedido() {
   document.getElementById('success-overlay').classList.add('hidden');
-  // Volver a selector de cliente con mismo vendedor
   estado.cliente = null;
   estado.carrito = {};
-  document.getElementById('app').classList.add('hidden');
-  document.getElementById('screen-cliente').classList.remove('hidden');
-  document.getElementById('btn-continuar-cliente').disabled = true;
-  document.getElementById('buscador-clientes').value='';
-  filtrarClientes('');
+  actualizarBadges();
+  actualizarFab();
+  renderSidebarCats();
+  renderProductos();
+  // Abrir menú para elegir nuevo cliente
+  abrirMenu();
 }
 
 // ── CARGA INICIAL ──
 async function init() {
-  renderVendedores();
   // Cargar productos
   try {
     if (!firebaseOK) throw new Error('sin firebase');
