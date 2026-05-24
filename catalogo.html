@@ -822,7 +822,14 @@ async function init() {
     try { const db=JSON.parse(localStorage.getItem('golosinas_admin')||'{}'); vendedores=db.vendedores||[]; } catch(e2){}
   }
   _clientesFiltrados = [...clientes];
+  // Mostrar app y abrir menú
+  document.getElementById('app').classList.remove('hidden');
+  renderSidebarCats();
+  renderProductos();
+  actualizarBadges();
+  actualizarFab();
   document.getElementById('loading-overlay').classList.add('hidden');
+  abrirMenu();
 }
 init();
 </script>
